@@ -1,0 +1,36 @@
+name: Remove expired shares
+
+on:
+  schedule:
+    - cron: "17 3 * * *"   # daily, 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Delete expired shares
+        run: |
+          python3 - <<'PY'
+          import datetime, glob, json, os, shutil
+          now = datetime.datetime.now(datetime.timezone.utc)
+          removed = 0
+          for meta in glob.glob("s/*/meta.json"):
+              expires = json.load(open(meta)).get("expires")
+              if expires and datetime.datetime.fromisoformat(expires.replace("Z", "+00:00")) < now:
+                  shutil.rmtree(os.path.dirname(meta))
+                  removed += 1
+          print(f"Removed {removed} expired share(s)")
+          PY
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A .
+          git diff --cached --quiet || (git commit -m "Remove expired shares" && git push)
