@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Class Materials</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header><span id="site">Class Materials</span></header>
+
+  <div class="card narrow" id="enter">
+    <h1 class="center">Get your materials</h1>
+    <p class="muted center">Enter the code shown by your lecturer.</p>
+    <form id="form">
+      <input class="code-input" id="code" maxlength="12" autocomplete="off" autocapitalize="characters"
+             spellcheck="false" placeholder="ABCD-2345" required>
+      <p class="err center" id="err" hidden></p>
+      <button class="btn full" id="go">Open</button>
+    </form>
+  </div>
+
+  <div class="card" id="share" hidden>
+    <p class="muted" id="mod"></p>
+    <h1 id="title"></h1>
+    <p class="muted" id="info"></p>
+    <div class="files" id="files"></div>
+    <button class="btn" id="all" hidden>Download all (.zip)</button>
+    <p class="muted" style="margin-top:20px"><a href="./">Enter another code</a></p>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const base = new URL("./", location.href).href;
+  let current = null;
+
+  document.title = SITE.name;
+  $("site").textContent = SITE.name;
+
+  function showErr(msg) { $("err").textContent = msg; $("err").hidden = false; }
+
+  async function load(raw) {
+    const code = MS.normalise(raw);
+    $("err").hidden = true;
+    if (!MS.valid(code)) return showErr("Codes are 8 letters and numbers, like ABCD-2345.");
+    $("go").disabled = true;
+    $("go").textContent = "Unlocking…";
+    try {
+      const r = await MS.openShare(code, SITE.salt, base);
+      if (r.status === "notfound") return showErr("That code wasn't recognised. Check it and try again — a brand-new code can take a couple of minutes to go live.");
+      if (r.status === "expired") return showErr("This code has expired. Ask your lecturer for a new one.");
+      current = r;
+      history.replaceState(null, "", "#" + code);
+      render();
+    } catch (e) {
+      showErr(e.name === "OperationError" ? "These files couldn't be unlocked with that code." : "Couldn't reach the site. Check your connection and try again.");
+    } finally {
+      $("go").disabled = false;
+      $("go").textContent = "Open";
+    }
+  }
+
+  function render() {
+    const m = current.manifest;
+    $("enter").hidden = true;
+    $("share").hidden = false;
+    $("mod").textContent = m.module || "";
+    $("title").textContent = m.title;
+    document.title = m.title;
+    const n = m.files.length;
+    let info = n + " file" + (n === 1 ? "" : "s");
+    if (current.meta.expires) info += " · available until " + new Date(current.meta.expires).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+    $("info").textContent = info;
+    const box = $("files");
+    box.textContent = "";
+    for (const f of m.files) {
+      const b = document.createElement("button");
+      const name = document.createElement("span");
+      const sz = document.createElement("span");
+      name.textContent = f.name;
+      sz.className = "sz";
+      sz.textContent = MS.sizeText(f.size) + " ↓";
+      b.append(name, sz);
+      b.onclick = () => saveOne(f, sz);
+      box.append(b);
+    }
+    $("all").hidden = n < 2;
+  }
+
+  function download(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  async function saveOne(f, label) {
+    const before = MS.sizeText(f.size);
+    label.textContent = "Downloading…";
+    try {
+      download(new Blob([await current.file(f)], { type: f.type }), f.name);
+      label.textContent = before + " ✓";
+    } catch (e) {
+      label.textContent = "Failed — tap to retry";
+    }
+  }
+
+  function loadZipLib() {
+    if (window.JSZip) return Promise.resolve();
+    return new Promise((ok, fail) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+      s.onload = ok;
+      s.onerror = fail;
+      document.head.append(s);
+    });
+  }
+
+  $("all").onclick = async () => {
+    const btn = $("all");
+    btn.disabled = true;
+    try {
+      await loadZipLib();
+      const zip = new JSZip();
+      const files = current.manifest.files;
+      for (let i = 0; i < files.length; i++) {
+        btn.textContent = `Downloading ${i + 1} of ${files.length}…`;
+        zip.file(files[i].name, await current.file(files[i]));
+      }
+      btn.textContent = "Zipping…";
+      const blob = await zip.generateAsync({ type: "blob" });
+      download(blob, (current.manifest.title.replace(/[^\w\- ]+/g, "").trim() || "materials") + ".zip");
+      btn.textContent = "Download all (.zip) ✓";
+    } catch (e) {
+      btn.textContent = "Couldn't build the zip — download files one by one";
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  $("form").onsubmit = (e) => { e.preventDefault(); load($("code").value); };
+
+  if (location.hash.length > 1) {
+    $("code").value = MS.pretty(MS.normalise(location.hash.slice(1)));
+    load(location.hash.slice(1));
+  }
+})();
+</script>
+</body>
+</html>
