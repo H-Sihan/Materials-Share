@@ -272,7 +272,9 @@
       present(rec, true);
     } catch (e) {
       p.className = "err";
-      p.textContent = "Upload failed: " + e.message;
+      p.textContent = e.status === 403
+        ? "Upload failed: your token can read this repository but not write to it. On GitHub: Settings → Developer settings → Fine-grained tokens → your token → Edit → set Repository access to this repo and Contents to \"Read and write\" → Update, then try again."
+        : "Upload failed: " + e.message;
     } finally {
       btn.disabled = false;
     }
