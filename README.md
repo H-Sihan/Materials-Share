@@ -9,32 +9,7 @@ Share class materials with an 8-character code (e.g. `V2WV-AF63`), hosted free o
 - **The repo only ever contains ciphertext.** Titles, file names and contents are all encrypted; folder names are derived from the code via PBKDF2 (400,000 rounds), so they reveal nothing.
 - **Expiry**: the student page refuses expired shares, and a daily GitHub Action deletes expired folders.
 
-## Set up (about 10 minutes)
-
-1. **Create a repository** on GitHub, e.g. `materials`.
-   - Free account → must be **public** (the files in it are encrypted, so that's fine).
-   - GitHub Pro / Team → can be private.
-2. **Upload this folder's contents** to the repo root, including the hidden `.github` folder. Easiest with git:
-   ```bash
-   cd materials-share-github
-   git init -b main && git add -A && git commit -m "Materials Share"
-   git remote add origin https://github.com/YOUR-USERNAME/materials.git
-   git push -u origin main
-   ```
-3. **Turn on Pages**: repo → *Settings → Pages* → Source: *Deploy from a branch* → `main` / `(root)` → Save. After a minute your site is at `https://YOUR-USERNAME.github.io/materials/`.
-4. **Allow the cleanup job to commit**: *Settings → Actions → General → Workflow permissions* → *Read and write permissions*.
-5. **Create an upload token**: GitHub → *Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token*
-   - Repository access: *Only select repositories* → this repo
-   - Permissions: *Contents → Read and write* (nothing else)
-   - Expiry: e.g. 90 days (you'll just paste a new one when it runs out)
-6. Open `https://YOUR-USERNAME.github.io/materials/admin.html`, paste the repo name and token, tick *Remember on this device* if it's your own machine, and press **Connect**.
-
-## Your own domain (optional)
-
-1. At your domain's DNS provider add a **CNAME** record: `get` → `YOUR-USERNAME.github.io`
-2. Repo → *Settings → Pages → Custom domain* → `get.yourdomain.com` → Save, then tick **Enforce HTTPS** once it's offered (can take up to an hour).
-
-Students then go to `get.yourdomain.com`.
+# https://h-sihan.github.io/Materials-Share/
 
 ## Day to day
 
